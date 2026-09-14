@@ -162,9 +162,9 @@ export function Footer() {
             © {new Date().getFullYear()} Xupyter One Account. All rights reserved. Built and maintained by Xupyter Solutions Pvt Ltd.
           </p>
           <div className="flex items-center gap-4 text-xs">
-            <a href="https://www.xupyter.com/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link href="/privacy" className="text-muted-foreground hover:text-foreground transition-colors">
               Privacy
-            </a>
+            </Link>
             <span className="h-3 w-px bg-border" aria-hidden />
             <a href="https://www.xupyter.com/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors">
               Terms
