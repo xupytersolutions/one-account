@@ -56,7 +56,7 @@ export function Header({
           </Link>
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           {showThemeSwitcher && <ThemeSwitcher />}
           {actions}
         </div>
