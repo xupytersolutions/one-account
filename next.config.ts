@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["@prisma/client", "prisma"],
   transpilePackages: ["@repo/ui", "@repo/shared"],
   turbopack: {},
+  images: {}
 };
 
 export default nextConfig;

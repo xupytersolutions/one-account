@@ -3,7 +3,7 @@ export type CategoryPreset = {
   label: string;
   icon: string;
   color: string;
-  logoUrl: string;
+  logoUrl: string | null;
   domain: string;
 };
 
@@ -21,7 +21,7 @@ export const CATEGORY_PRESETS: CategoryPreset[] = [
     label: "Yahoo",
     icon: "GlobeAltIcon",
     color: "#6001D2",
-    logoUrl: "https://cdn.simpleicons.org/yahoo/ffffff",
+    logoUrl: "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/yahoo.svg",
     domain: "yahoo.com",
   },
   {
@@ -61,7 +61,7 @@ export const CATEGORY_PRESETS: CategoryPreset[] = [
     label: "LinkedIn",
     icon: "BriefcaseIcon",
     color: "#0A66C2",
-    logoUrl: "https://cdn.simpleicons.org/linkedin/ffffff",
+    logoUrl: "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/linkedin.svg",
     domain: "linkedin.com",
   },
   {
@@ -85,7 +85,7 @@ export const CATEGORY_PRESETS: CategoryPreset[] = [
     label: "Microsoft",
     icon: "BuildingOffice2Icon",
     color: "#00A4EF",
-    logoUrl: "https://cdn.simpleicons.org/microsoft/ffffff",
+    logoUrl: "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/microsoft.svg",
     domain: "microsoft.com",
   },
   {
@@ -101,8 +101,16 @@ export const CATEGORY_PRESETS: CategoryPreset[] = [
     label: "Slack",
     icon: "FolderIcon",
     color: "#E01E5A",
-    logoUrl: "https://cdn.simpleicons.org/slack/ffffff",
+    logoUrl: "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/slack.svg",
     domain: "slack.com",
+  },
+  {
+    id: "mailcow",
+    label: "Mailcow",
+    icon: "ShieldCheckIcon",
+    color: "#1E88E5",
+    logoUrl: null,
+    domain: "mailcow.email",
   },
 ];
 

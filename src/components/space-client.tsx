@@ -18,6 +18,7 @@ import { useCreateEntry, useUpdateEntry, useDeleteEntry, useTransferEntry, useBu
 import { useSelection } from "@/lib/hooks/use-selection";
 import { useOutsideClick } from "@/lib/hooks/use-outside-click";
 import { useViewMode } from "@/lib/hooks/use-view-mode";
+import { usePersistedState } from "@/lib/hooks/use-persisted-state";
 import { useEntryFilters } from "@/lib/hooks/use-entry-filters";
 import { entrySchema } from "@/lib/validators";
 import { parseImportText } from "@/lib/utils/csv";
@@ -43,10 +44,10 @@ export function SpaceClient({ spaceId }: { spaceId: string }) {
   const bulkTransferMut = useBulkTransferEntries(spaceId);
 
   const { selected, toggle, clear, remove } = useSelection(entries.length, entries.map((e) => e.id));
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = usePersistedState(`one-account:accountsFilters:${spaceId}:search`, "");
   const [filterOpen, setFilterOpen] = useState(false);
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [sortBy, setSortBy] = useState("updated");
+  const [categoryFilter, setCategoryFilter] = usePersistedState(`one-account:accountsFilters:${spaceId}:category`, "all");
+  const [sortBy, setSortBy] = usePersistedState(`one-account:accountsFilters:${spaceId}:sort`, "updated");
   const [viewMode, setViewMode] = useViewMode("one-account:accountsView");
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
   const [revealed, setRevealed] = useState<Record<string, string>>({});

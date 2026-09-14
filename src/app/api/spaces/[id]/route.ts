@@ -1,10 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { spaceSchema } from "@/lib/validators";
 import { requireUser, jsonError, withError } from "@/lib/api-helpers";
+import { ensureDefaultCategories } from "@/lib/category-seed";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = await requireUser();
+    await ensureDefaultCategories(user.id);
     const { id } = await params;
     const space = await prisma.space.findFirst({ where: { id, ownerId: user.id } });
     if (!space) return jsonError("Space not found", 404);

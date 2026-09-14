@@ -11,7 +11,13 @@
     "db:migrate:dev": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "extension:dev": "wxt extension",
+    "extension:build": "wxt build extension",
+    "extension:build:prod": "wxt build --mode production extension",
+    "extension:zip": "wxt zip extension",
+    "extension:zip:prod": "wxt zip --mode production extension",
+    "extension:clean": "wxt clean extension"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",

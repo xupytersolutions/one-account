@@ -18,14 +18,10 @@ export function useOutsideClick(
       }
     };
 
-    const handleScroll = () => onClose();
-
     document.addEventListener("mousedown", handleClick);
-    window.addEventListener("scroll", handleScroll, true);
 
     return () => {
       document.removeEventListener("mousedown", handleClick);
-      window.removeEventListener("scroll", handleScroll, true);
     };
   }, [isOpen, onClose, selector]);
 }

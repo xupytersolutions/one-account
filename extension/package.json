@@ -3,6 +3,14 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build",
+    "build:prod": "wxt build --mode production",
+    "zip": "wxt zip",
+    "zip:prod": "wxt zip --mode production",
+    "clean": "wxt clean"
+  },
   "dependencies": {
     "@repo/shared": "workspace:*",
     "@repo/ui": "workspace:*"

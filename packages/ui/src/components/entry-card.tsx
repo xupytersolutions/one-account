@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, Button, Checkbox, InputGroup } from "@heroui/react";
 import {
   EllipsisVerticalIcon,
@@ -10,6 +10,8 @@ import {
   LinkIcon,
   ArrowTopRightOnSquareIcon,
   ChatBubbleLeftEllipsisIcon,
+  BoltIcon,
+  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
 import { Icon } from "./icon";
 import { timeAgo } from "../utils/time";
@@ -27,9 +29,36 @@ type EntryCardProps = {
   onToggleShow: (id: string) => void;
   copiedId: string | null;
   onCopy: (id: string, pwd: string) => void;
+  onAutofill?: (id: string) => void;
+  autofillingId?: string | null;
+  revealingIds?: Record<string, boolean>;
+  hideSelect?: boolean;
 };
 
-export function EntryCard({ entry, viewMode, isSelected, onToggleSelect, onMenuAt, onContextMenu, showPasswordMap, onToggleShow, copiedId, onCopy }: EntryCardProps) {
+function isLightColor(hex: string) {
+  try {
+    const c = hex.replace("#", "");
+    const r = parseInt(c.slice(0, 2), 16) / 255;
+    const g = parseInt(c.slice(2, 4), 16) / 255;
+    const b = parseInt(c.slice(4, 6), 16) / 255;
+    const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    return l > 0.65;
+  } catch { return false; }
+}
+
+function useIsDark() {
+  const [isDark, setIsDark] = useState(false);
+  useEffect(() => {
+    const check = () => setIsDark(document.documentElement.classList.contains("dark"));
+    check();
+    const obs = new MutationObserver(check);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => obs.disconnect();
+  }, []);
+  return isDark;
+}
+
+export function EntryCard({ entry, viewMode, isSelected, onToggleSelect, onMenuAt, onContextMenu, showPasswordMap, onToggleShow, copiedId, onCopy, onAutofill, autofillingId, revealingIds, hideSelect }: EntryCardProps) {
   const displayCat: Category | { name: string; icon: string | null; color: string | null; logoUrl: string | null } | null =
     (entry as unknown as { categoryRef?: Category | null }).categoryRef ??
     (entry.category ? { name: entry.category, icon: entry.icon, color: entry.color, logoUrl: (entry as unknown as { logoUrl?: string | null }).logoUrl ?? null } : null);
@@ -37,8 +66,17 @@ export function EntryCard({ entry, viewMode, isSelected, onToggleSelect, onMenuA
   const catIcon = displayCat?.icon || null;
   const catLogo = (displayCat as unknown as { logoUrl?: string | null })?.logoUrl || null;
   const isCompact = viewMode === "compact";
-  const [local] = useState(false);
-  void local;
+  const [logoError, setLogoError] = useState(false);
+  // reset error when logo changes (space/category switch)
+  const [prevLogo, setPrevLogo] = useState<string | null>(null);
+  if (prevLogo !== catLogo) { setPrevLogo(catLogo); if (logoError) setLogoError(false); }
+  const needsInvert = !!catLogo && /jsdelivr|unpkg/.test(catLogo);
+  const isLight = isLightColor(catColor);
+  const isDark = useIsDark();
+  // theme-oriented: in dark mode force white for contrast, even on light category colors add drop-shadow
+  const iconFg = isDark ? "text-white" : isLight ? "text-black" : "text-white";
+  const logoFilter = needsInvert ? (isDark || !isLight ? "brightness-0 invert" : "") : "";
+  const ringClass = isDark ? "ring-white/20" : "ring-black/10";
 
   return (
     <Card className="w-full shadow-none hover:scale-[1.02] duration-300 transition-transform rounded-2xl group cursor-pointer" onContextMenu={onContextMenu}>
@@ -46,13 +84,15 @@ export function EntryCard({ entry, viewMode, isSelected, onToggleSelect, onMenuA
         {isCompact ? (
           <>
             <div className="flex items-center gap-2">
-              <Checkbox isSelected={isSelected} onChange={onToggleSelect} aria-label="Select account" className="shrink-0" variant="secondary" onClick={(ev) => ev.stopPropagation()}>
-                <Checkbox.Content>
-                  <Checkbox.Control>
-                    <Checkbox.Indicator />
-                  </Checkbox.Control>
-                </Checkbox.Content>
-              </Checkbox>
+              {!hideSelect && (
+                <Checkbox isSelected={isSelected} onChange={onToggleSelect} aria-label="Select account"  variant="secondary" onClick={(ev) => ev.stopPropagation()}>
+                  <Checkbox.Content>
+                    <Checkbox.Control>
+                      <Checkbox.Indicator />
+                    </Checkbox.Control>
+                  </Checkbox.Content>
+                </Checkbox>
+              )}
               <div className="flex-1 min-w-0">
                 <h3 className="text-sm font-semibold text-foreground truncate leading-tight">{entry.title ?? displayCat?.name ?? "Account"}</h3>
                 <span className="text-xs text-muted-foreground truncate block">{entry.email}</span>
@@ -85,9 +125,14 @@ export function EntryCard({ entry, viewMode, isSelected, onToggleSelect, onMenuA
               <InputGroup fullWidth>
                 <InputGroup.Input readOnly value={showPasswordMap[entry.id] ? entry.password : "••••••••••"} aria-label="Password" className="w-full font-mono text-sm" />
                 <InputGroup.Suffix className="pe-0">
-                  <Button isIconOnly size="sm" variant="ghost" aria-label={showPasswordMap[entry.id] ? "Hide password" : "Show password"} onPress={() => onToggleShow(entry.id)} className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                    {showPasswordMap[entry.id] ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
+                  <Button isIconOnly size="sm" variant="ghost" aria-label={revealingIds?.[entry.id] ? "Loading…" : showPasswordMap[entry.id] ? "Hide password" : "Show password"} onPress={() => onToggleShow(entry.id)} isDisabled={!!revealingIds?.[entry.id]} className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                    {revealingIds?.[entry.id] ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : showPasswordMap[entry.id] ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
                   </Button>
+                  {onAutofill && (
+                    <Button isIconOnly size="sm" variant="ghost" aria-label={autofillingId === entry.id ? "Filling…" : "Autofill on this page"} onPress={() => onAutofill(entry.id)} isDisabled={autofillingId === entry.id || !!revealingIds?.[entry.id]} className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10">
+                      {autofillingId === entry.id ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <BoltIcon className="w-4 h-4" />}
+                    </Button>
+                  )}
                   <Button isIconOnly size="sm" variant="ghost" aria-label={copiedId === entry.id ? "Copied" : "Copy password"} onPress={() => onCopy(entry.id, entry.password)} className={`h-8 w-8 ${copiedId === entry.id ? "text-success" : "text-muted-foreground hover:text-foreground"}`}>
                     {copiedId === entry.id ? <CheckIcon className="w-4 h-4" /> : <ClipboardDocumentIcon className="w-4 h-4" />}
                   </Button>
@@ -99,20 +144,22 @@ export function EntryCard({ entry, viewMode, isSelected, onToggleSelect, onMenuA
           <>
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2" onClick={(ev) => ev.stopPropagation()}>
-                <Checkbox isSelected={isSelected} onChange={onToggleSelect} aria-label="Select account" className="shrink-0">
-                  <Checkbox.Content>
-                    <Checkbox.Control>
-                      <Checkbox.Indicator />
-                    </Checkbox.Control>
-                  </Checkbox.Content>
-                </Checkbox>
-                <div className="w-10 h-10 rounded-md flex items-center justify-center shrink-0 text-white" style={{ backgroundColor: catColor }}>
-                  {catLogo ? (
-                    <img src={catLogo} alt={displayCat!.name} className="w-5 h-5 object-contain" onError={(ev) => { (ev.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                {!hideSelect && (
+                  <Checkbox isSelected={isSelected} onChange={onToggleSelect} variant="secondary" aria-label="Select account">
+                    <Checkbox.Content>
+                      <Checkbox.Control>
+                        <Checkbox.Indicator />
+                      </Checkbox.Control>
+                    </Checkbox.Content>
+                  </Checkbox>
+                )}
+                <div className={`w-10 h-10 rounded-md flex items-center justify-center shrink-0 ring-1 ${ringClass} shadow-sm ${iconFg}`} style={{ backgroundColor: catColor }}>
+                  {catLogo && !logoError ? (
+                    <img src={catLogo} alt={displayCat!.name} className={`w-5 h-5 object-contain ${logoFilter} ${isDark ? "drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]" : ""}`} onError={() => setLogoError(true)} />
                   ) : catIcon ? (
-                    <Icon icon={catIcon} className="w-5 h-5 text-white" />
+                    <Icon icon={catIcon} className={`w-5 h-5 ${iconFg} ${isDark ? "drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]" : ""}`} />
                   ) : (
-                    <span className="font-bold text-sm">{(entry.title ?? entry.email).charAt(0).toUpperCase()}</span>
+                    <span className={`font-bold text-sm ${iconFg} ${isDark ? "drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]" : ""}`}>{(entry.title ?? entry.email).charAt(0).toUpperCase()}</span>
                   )}
                 </div>
               </div>
@@ -159,9 +206,14 @@ export function EntryCard({ entry, viewMode, isSelected, onToggleSelect, onMenuA
               <InputGroup fullWidth>
                 <InputGroup.Input readOnly value={showPasswordMap[entry.id] ? entry.password : "••••••••••"} aria-label="Password" className="w-full font-mono text-sm" />
                 <InputGroup.Suffix className="pe-0">
-                  <Button isIconOnly size="sm" variant="ghost" aria-label={showPasswordMap[entry.id] ? "Hide password" : "Show password"} onPress={() => onToggleShow(entry.id)} className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                    {showPasswordMap[entry.id] ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
+                  <Button isIconOnly size="sm" variant="ghost" aria-label={revealingIds?.[entry.id] ? "Loading…" : showPasswordMap[entry.id] ? "Hide password" : "Show password"} onPress={() => onToggleShow(entry.id)} isDisabled={!!revealingIds?.[entry.id]} className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                    {revealingIds?.[entry.id] ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : showPasswordMap[entry.id] ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
                   </Button>
+                  {onAutofill && (
+                    <Button isIconOnly size="sm" variant="ghost" aria-label={autofillingId === entry.id ? "Filling…" : "Autofill on this page"} onPress={() => onAutofill(entry.id)} isDisabled={autofillingId === entry.id || !!revealingIds?.[entry.id]} className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10">
+                      {autofillingId === entry.id ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <BoltIcon className="w-4 h-4" />}
+                    </Button>
+                  )}
                   <Button isIconOnly size="sm" variant="ghost" aria-label={copiedId === entry.id ? "Copied" : "Copy password"} onPress={() => onCopy(entry.id, entry.password)} className={`h-8 w-8 ${copiedId === entry.id ? "text-success" : "text-muted-foreground hover:text-foreground"}`}>
                     {copiedId === entry.id ? <CheckIcon className="w-4 h-4" /> : <ClipboardDocumentIcon className="w-4 h-4" />}
                   </Button>

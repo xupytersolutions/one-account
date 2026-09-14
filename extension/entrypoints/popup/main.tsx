@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import ReactDOM from "react-dom/client";
 import { Button, Input, Card, Dropdown, Chip, Select, Label, ListBox, Slider } from "@heroui/react";
-import { EyeIcon, EyeSlashIcon, ClipboardDocumentIcon, CheckIcon, LinkIcon, ArrowTopRightOnSquareIcon, MoonIcon, SunIcon, ArrowRightStartOnRectangleIcon, XMarkIcon, KeyIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
+import { EyeIcon, EyeSlashIcon, ClipboardDocumentIcon, CheckIcon, LinkIcon, ArrowTopRightOnSquareIcon, MoonIcon, SunIcon, ArrowRightStartOnRectangleIcon, XMarkIcon, KeyIcon, ArrowPathIcon, BoltIcon } from "@heroicons/react/24/outline";
 import { generatePassword, generatePin, generatePassphrase, evaluateStrength } from "@repo/shared";
 import type { Mode, Opts, PassphraseOpts } from "@repo/shared";
 import { getToken, setToken, clearToken } from "../../utils/storage";
@@ -179,6 +179,9 @@ export function PopupApp() {
   const [loadingEntries, setLoadingEntries] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [locked, setLocked] = useState(false);
+  const [autofillingId, setAutofillingId] = useState<string | null>(null);
+  const [autofillToast, setAutofillToast] = useState<string | null>(null);
+  const [revealingIds, setRevealingIds] = useState<Record<string, boolean>>({});
   const timeoutRef = useRef<Record<string, number>>({});
   const siteUrl = DEFAULT_SITE_URL.replace(/\/$/, "");
 
@@ -224,12 +227,65 @@ export function PopupApp() {
   const handleToggleShow = async (id: string) => {
     const isShowing = showPwd[id];
     if (!isShowing && !pwdCache[id] && token) {
+      setRevealingIds((m) => ({ ...m, [id]: true }));
       try {
         const r = await getCredential(token, id);
         setPwdCache((p) => ({ ...p, [id]: r.password }));
       } catch (e) { if (!(await handle401(e))) setErr(e instanceof Error ? e.message : "Failed to reveal"); return; }
+      finally { setRevealingIds((m) => { const n = { ...m }; delete n[id]; return n; }); }
     }
     setShowPwd((p) => ({ ...p, [id]: !p[id] }));
+  };
+
+  const sendAutofillToTab = async (email: string, password: string) => {
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    const tab = tabs[0];
+    if (!tab?.id) throw new Error("No active tab — open a login page and try again");
+    const url = tab.url ?? "";
+    if (url.startsWith("chrome://") || url.startsWith("chrome-extension://") || url.startsWith("about:") || url.startsWith("edge://") || url.startsWith("chrome-search://")) {
+      throw new Error("Autofill not available on this browser page — open a website login page");
+    }
+    // Ensure content script is injected — if the tab was open before install, sendMessage fails with "Receiving end does not exist"
+    try {
+      const res = await browser.tabs.sendMessage(tab.id, { type: "ONE_ACCOUNT_AUTOFILL", payload: { email, password } }) as unknown as { ok?: boolean; filledUsername?: boolean; filledPassword?: boolean; focusedSubmit?: boolean; error?: string } | undefined;
+      if (!res?.ok) throw new Error(res?.error || "No login form found on this page — check that a username and password field are visible");
+      return res;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes("Receiving end does not exist") || msg.includes("Could not establish connection") || msg.includes("The message port closed")) {
+        throw new Error("Content script not ready — please reload the page and try again (required if the page was open before installing/updating the extension)");
+      }
+      throw e;
+    }
+  };
+
+  const handleAutofill = async (entry: Entry) => {
+    if (!token) return;
+    setAutofillingId(entry.id);
+    setErr(null);
+    try {
+      // Always fetch fresh credential (encrypted at rest, decrypted server-side on demand). Cache helps but don't rely on stale.
+      let password = pwdCache[entry.id];
+      if (!password) {
+        const r = await getCredential(token, entry.id);
+        password = r.password;
+        setPwdCache((p) => ({ ...p, [entry.id]: password! }));
+      }
+      const result = await sendAutofillToTab(entry.email, password);
+      const parts: string[] = [];
+      if (result.filledUsername) parts.push("username");
+      if (result.filledPassword) parts.push("password");
+      const done = parts.length ? `Filled ${parts.join(" + ")}` : "Autofilled";
+      const extra = result.focusedSubmit ? " · submit focused" : "";
+      setAutofillToast(done + extra);
+      setTimeout(() => setAutofillToast(null), 2500);
+      // Close the popup after successful autofill — user can immediately continue on the page
+      setTimeout(() => window.close(), 450);
+    } catch (e) {
+      if (!(await handle401(e))) setErr(e instanceof Error ? e.message : "Autofill failed");
+    } finally {
+      setAutofillingId(null);
+    }
   };
   // generator: regenerate when mode/opts change while open
   useEffect(() => {
@@ -310,8 +366,12 @@ export function PopupApp() {
                   <Button variant="tertiary" className="flex-1 border border-border" onPress={() => copyText(selectedEntry.email, "email")}>{copiedId === "email" ? <><CheckIcon className="w-4 h-4" /> Copied</> : "Copy username"}</Button>
                   <Button className="flex-1 bg-primary text-primary-foreground" onPress={() => copyPassword(selectedEntry)}>{copiedId === selectedEntry.id ? <><CheckIcon className="w-4 h-4" /> Copied</> : "Copy password"}</Button>
                 </div>
+                <Button className="w-full bg-foreground text-background font-medium flex items-center justify-center gap-1.5" onPress={() => handleAutofill(selectedEntry)} isDisabled={autofillingId === selectedEntry.id}>
+                  {autofillingId === selectedEntry.id ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <BoltIcon className="w-4 h-4" />} Autofill on this page
+                </Button>
                 {host && matched && <span className="text-xs bg-green-50 border border-green-200 rounded-lg px-2 py-1.5 text-green-800">Matches current site: {host}</span>}
-                {!host && <p className="text-xs text-muted-foreground">No site detected (chrome internal page)</p>}
+                {!host && <p className="text-xs text-muted-foreground">No site detected — open a login page, then use Autofill</p>}
+                {autofillToast && <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-2 py-1.5">{autofillToast}</p>}
               </Card.Content>
             </Card>
           </div>
@@ -324,6 +384,7 @@ export function PopupApp() {
         <ExtensionHeader siteUrl={siteUrl} onLock={logout} onGenerate={() => setShowGenerator(true)} />
 
         {err && <div className="mx-3 mt-3 bg-red-50 border border-red-200 rounded-xl px-3 py-2 text-xs text-red-800 flex items-center justify-between">{err}<button onClick={() => setErr(null)} className="ml-2 text-red-600 hover:underline"><XMarkIcon className="w-4 h-4" /></button></div>}
+        {autofillToast && <div className="mx-3 mt-3 bg-green-50 border border-green-200 rounded-xl px-3 py-2 text-xs text-green-800 flex items-center justify-between">{autofillToast}<button onClick={() => setAutofillToast(null)} className="ml-2 text-green-600 hover:underline"><XMarkIcon className="w-4 h-4" /></button></div>}
 
         {/* toolbar — reusing @repo/ui SearchInput + ViewToggle (same as site) */}
         <div className="p-3 border-b border-border bg-background sticky top-14 z-10">
@@ -354,7 +415,7 @@ export function PopupApp() {
               {sorted.map((e) => {
                 const vaultEntry = { ...e, password: pwdCache[e.id] ?? "" } as unknown as import("@repo/ui").VaultEntry;
                 return (
-                  <div key={e.id} onClick={() => setSelectedEntry(e)} className="rounded-2xl">
+                  <div key={e.id} onClick={() => setSelectedEntry(e)} className="rounded-2xl cursor-pointer">
                     <EntryCard
                       entry={vaultEntry}
                       viewMode={viewMode}
@@ -366,6 +427,10 @@ export function PopupApp() {
                       onToggleShow={handleToggleShow}
                       copiedId={copiedId}
                       onCopy={() => copyPassword(e)}
+                      onAutofill={() => handleAutofill(e)}
+                      autofillingId={autofillingId}
+                      revealingIds={revealingIds}
+                      hideSelect
                     />
                   </div>
                 );
@@ -375,6 +440,7 @@ export function PopupApp() {
           {entryMenu && (
             <div data-entry-menu className="fixed z-40 min-w-[180px] bg-popover border border-border shadow-sm rounded-xl p-1 flex flex-col" style={{ left: Math.min(entryMenu.x, 220), top: entryMenu.y }} onClick={(e) => e.stopPropagation()}>
               <button className="text-left px-3 py-2 text-sm rounded-lg hover:bg-muted flex items-center gap-2" onClick={() => { const ent = entries.find((x) => x.id === entryMenu.id); if (ent) setSelectedEntry(ent); setEntryMenu(null); }}>Open</button>
+              <button className="text-left px-3 py-2 text-sm rounded-lg hover:bg-muted flex items-center gap-2" onClick={async () => { const ent = entries.find((x) => x.id === entryMenu.id); if (ent) await handleAutofill(ent); setEntryMenu(null); }}><BoltIcon className="w-4 h-4" /> Autofill</button>
               <button className="text-left px-3 py-2 text-sm rounded-lg hover:bg-muted flex items-center gap-2" onClick={async () => { const ent = entries.find((x) => x.id === entryMenu.id); if (ent) { await navigator.clipboard.writeText(ent.email); setCopiedId(ent.id + "-email"); setTimeout(() => setCopiedId(null), 1500); } setEntryMenu(null); }}>Copy email</button>
               <button className="text-left px-3 py-2 text-sm rounded-lg hover:bg-muted flex items-center gap-2" onClick={async () => { const ent = entries.find((x) => x.id === entryMenu.id); if (ent) await copyPassword(ent); setEntryMenu(null); }}>Copy password</button>
               {entries.find((x) => x.id === entryMenu.id)?.url && <button className="text-left px-3 py-2 text-sm rounded-lg hover:bg-muted flex items-center gap-2" onClick={() => { const ent = entries.find((x) => x.id === entryMenu.id); if (ent?.url) browser.tabs.create({ url: ent.url }); setEntryMenu(null); }}>Open URL</button>}

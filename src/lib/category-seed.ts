@@ -9,22 +9,19 @@ import { CATEGORY_PRESETS } from "@/lib/constants/category-presets";
 export async function ensureDefaultCategories(ownerId: string) {
   const existing = await prisma.category.findMany({
     where: { ownerId },
-    select: { name: true },
+    select: { id: true, name: true, icon: true, color: true, logoUrl: true },
   });
-  const existingLower = new Set(existing.map((c) => c.name.toLowerCase()));
+  const existingLower = new Map(existing.map((c) => [c.name.toLowerCase(), c]));
 
-  const toCreate = CATEGORY_PRESETS.filter((p) => !existingLower.has(p.label.toLowerCase())).map((p) => ({
-    name: p.label,
-    icon: p.icon,
-    color: p.color,
-    logoUrl: p.logoUrl,
-    ownerId,
-  }));
-
-  if (toCreate.length === 0) return;
-
-  // createMany with skipDuplicates not reliable for case-insensitive, so create sequentially
-  for (const data of toCreate) {
-    await prisma.category.create({ data });
+  // create missing + repair broken presets (icon/color/logoUrl) for light-mode & CDN fixes
+  for (const p of CATEGORY_PRESETS) {
+    const found = existingLower.get(p.label.toLowerCase());
+    if (!found) {
+      await prisma.category.create({ data: { name: p.label, icon: p.icon, color: p.color, logoUrl: p.logoUrl, ownerId } });
+    } else if (found.icon !== p.icon || found.color !== p.color || found.logoUrl !== p.logoUrl) {
+      await prisma.category.update({ where: { id: found.id }, data: { icon: p.icon, color: p.color, logoUrl: p.logoUrl } });
+    }
   }
+
+  // also add mailcow via same loop — ensures existing users get it
 }
