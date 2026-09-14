@@ -32,7 +32,7 @@ export function LoginCard({ action }: { action: () => Promise<void> }) {
             </Button>
           </form>
           <div>
-            <Checkbox name="basic-terms">
+            <Checkbox name="basic-terms" isSelected={true} isDisabled={true}>
               <Checkbox.Content>
                 <Checkbox.Control>
                   <Checkbox.Indicator />
