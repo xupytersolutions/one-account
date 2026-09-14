@@ -1,10 +1,17 @@
-import { getSiteUrl } from "./storage";
+import { DEFAULT_SITE_URL } from "./config";
 
-const GOOGLE_CLIENT_ID = "1028690921231-idhqso2dcto3ebj3t639f5tsqv425h3b.apps.googleusercontent.com";
+// Build-time env via WXT (vite). Set WXT_GOOGLE_CLIENT_ID in extension/.env
+// Falls back to empty so we can throw a clear error at runtime instead of building with undefined.
+const GOOGLE_CLIENT_ID = (import.meta.env.WXT_GOOGLE_CLIENT_ID as string | undefined)?.trim();
 
 let pendingFlow: Promise<string> | null = null;
 
 export async function signInWithGoogle(): Promise<string> {
+  if (!GOOGLE_CLIENT_ID) {
+    throw new Error(
+      "Missing WXT_GOOGLE_CLIENT_ID — add it to extension/.env (same value as AUTH_GOOGLE_ID in the web app) and rebuild the extension",
+    );
+  }
   if (pendingFlow) return pendingFlow;
   pendingFlow = (async () => {
     const redirectUri = chrome.identity.getRedirectURL();
@@ -37,7 +44,7 @@ export async function signInWithGoogle(): Promise<string> {
   }
   if (!idToken) throw new Error("No id_token in response");
 
-  const siteUrl = await getSiteUrl();
+  const siteUrl = DEFAULT_SITE_URL.replace(/\/$/, "");
   const res = await fetch(`${siteUrl}/api/extension/auth/google`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

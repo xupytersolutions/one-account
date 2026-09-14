@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   // No custom outputFileTracingIncludes needed - next handles @prisma/client automatically.
   // Keep serverExternalPackages so Turbopack doesn't bundle native .so.node bindings.
   serverExternalPackages: ["@prisma/client", "prisma"],
+  transpilePackages: ["@repo/ui", "@repo/shared"],
   turbopack: {},
 };
 

@@ -1,0 +1,60 @@
+@import "tailwindcss";
+@import "@heroui/styles";
+@source "../../src/**/*.{ts,tsx}";
+@source "../../extension/**/*.{ts,tsx}";
+@source "./**/*.{ts,tsx}";
+@source "../**/*.{ts,tsx}";
+
+@theme {
+  --color-background: oklch(0.985 0.002 286);
+  --color-foreground: oklch(0.15 0.006 286);
+  --color-card: oklch(1 0 0);
+  --color-card-foreground: oklch(0.15 0.006 286);
+  --color-popover: oklch(1 0 0);
+  --color-popover-foreground: oklch(0.15 0.006 286);
+  --color-primary: oklch(0.62 0.19 255);
+  --color-primary-foreground: oklch(0.98 0 0);
+  --color-primary-hover: oklch(0.55 0.19 255);
+  --primary: 59 130 246;
+  --primary-hover: 37 99 235;
+  --space-personal: 59 130 246;
+  --space-company: 16 185 129;
+  --space-client: 245 158 11;
+  --color-muted: oklch(0.96 0.002 286);
+  --color-muted-foreground: oklch(0.55 0.006 286);
+  --color-border: oklch(0.92 0.004 286);
+  --color-border-strong: oklch(0.85 0.004 286);
+  --color-input: oklch(0.92 0.004 286);
+  --color-ring: oklch(0.62 0.19 255);
+  --color-destructive: oklch(0.58 0.22 27);
+  --color-destructive-foreground: oklch(0.98 0 0);
+  --color-palette-1: #006FEE;
+  --color-palette-2: #17C964;
+  --color-palette-3: #F5A524;
+  --color-palette-4: #F31260;
+  --color-palette-5: #7828C8;
+  --color-palette-6: #06B7DB;
+  --color-palette-7: #FF6900;
+  --color-palette-8: #9353D3;
+  --color-default: var(--color-muted);
+  --color-content1: var(--color-card);
+  --color-content2: var(--color-muted);
+  --radius-card: 0.875rem;
+  --radius-input: 0.625rem;
+  --radius-full: 9999px;
+  --shadow-xs: 0 1px 2px 0 oklch(0.15 0 0 / 0.04);
+  --shadow-sm: 0 1px 3px 0 oklch(0.15 0 0 / 0.06), 0 1px 2px -1px oklch(0.15 0 0 / 0.04);
+  --shadow-card: 0 1px 2px 0 oklch(0.15 0 0 / 0.05);
+}
+
+@layer base {
+  :root { color-scheme: light; }
+  .dark { color-scheme: dark; --color-background: oklch(0.14 0.006 286); --color-foreground: oklch(0.96 0.002 286); --color-card: oklch(0.20 0.006 286); --color-card-foreground: oklch(0.96 0.002 286); --color-popover: oklch(0.20 0.006 286); --color-popover-foreground: oklch(0.96 0.002 286); --color-muted: oklch(0.22 0.006 286); --color-muted-foreground: oklch(0.65 0.006 286); --color-border: oklch(0.26 0.006 286); --color-border-strong: oklch(0.32 0.006 286); --color-input: oklch(0.26 0.006 286); --shadow-xs: 0 1px 2px 0 oklch(0 0 0 / 0.4); --shadow-sm: 0 1px 3px 0 oklch(0 0 0 / 0.5), 0 1px 2px -1px oklch(0 0 0 / 0.4); --shadow-card: 0 1px 3px 0 oklch(0 0 0 / 0.3); }
+  * { box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+  body { background: var(--color-background); color: var(--color-foreground); font-family: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif; }
+  h1,h2,h3,h4,h5,h6 { font-family: var(--font-sora), ui-sans-serif, system-ui, sans-serif; letter-spacing: -0.02em; }
+  .font-display { font-family: var(--font-bebas), ui-sans-serif, system-ui, sans-serif; letter-spacing: 0.02em; line-height: 0.95; }
+  :focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; }
+}
+*::-webkit-scrollbar { display: none; }
